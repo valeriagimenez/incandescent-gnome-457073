@@ -1,0 +1,34 @@
+[build]
+  publish = "."
+  functions = "netlify/functions"
+  command = "npm install && npm run build"
+
+[functions]
+  node_bundler = "esbuild"
+
+# SPA fallback: sin `force = true` (el valor por defecto), Netlify SOLO usa
+# esta regla cuando la ruta pedida no coincide con un archivo real ni con
+# una Netlify Function. Las funciones en /.netlify/functions/* se enrutan
+# automáticamente, así que NO necesitan (ni admiten) una regla de redirect
+# propia — declararla es justamente lo que rompía el deploy.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/manifest.json"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+# Módulo 6 — corre cada 15 minutos revisando la agenda de todos los usuarios
+# y enviando Web Push a lo que vence pronto. No hace nada hasta que
+# configures las variables de entorno que pide send-reminders.js.
+[functions."send-reminders"]
+  schedule = "*/15 * * * *"
+

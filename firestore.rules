@@ -1,0 +1,245 @@
+rules_version = '2';
+
+// =============================================================================
+// Firestore Security Rules — Cuaderno IA
+// =============================================================================
+// Cómo desplegarlas:
+//   1. Firebase Console → Firestore Database → Reglas → pega este archivo, o
+//   2. Firebase CLI:  firebase deploy --only firestore:rules
+//      (requiere que este archivo se llame firestore.rules y esté referenciado
+//      en firebase.json → "firestore": { "rules": "firestore.rules" })
+//
+// Cubre las colecciones ya implementadas (Fases 1-3) y deja preparadas —
+// pero correctamente restringidas— las de los módulos aún no construidos
+// (cursos, asistencia, agenda), para que nada quede abierto por accidente
+// a medida que el frontend las vaya usando.
+// =============================================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // -------------------------------------------------------------------
+    // Helpers
+    // -------------------------------------------------------------------
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function myProfile() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function myRole() {
+      return isSignedIn() ? myProfile().role : null;
+    }
+
+    function isTeacher() {
+      return isSignedIn() && myRole() == 'docente';
+    }
+
+    function isStudent() {
+      return isSignedIn() && myRole() == 'estudiante';
+    }
+
+    // Nivel dirección (Módulo 9-10): ve todo, crea/edita cronogramas y
+    // gestiona docentes/cursos. No reemplaza a isTeacher/isStudent — es un
+    // tercer rol, no un superset automático de docente.
+    function isDireccion() {
+      return isSignedIn() && myRole() == 'direccion';
+    }
+
+    // No permite que un usuario se auto-asigne otro `role` después de creado.
+    function roleUnchanged() {
+      return request.resource.data.role == resource.data.role;
+    }
+
+    // -------------------------------------------------------------------
+    // users/{uid}
+    // Perfil + rol (docente | estudiante). Fase 1.
+    // -------------------------------------------------------------------
+    match /users/{uid} {
+      allow read: if isOwner(uid) || isTeacher() || isDireccion();
+      allow create: if isOwner(uid)
+                    && request.resource.data.uid == uid
+                    && request.resource.data.role in ['docente', 'estudiante', 'direccion'];
+      allow update: if isOwner(uid) && roleUnchanged();
+      allow delete: if false; // borrado de cuentas se maneja server-side, no desde el cliente
+    }
+
+    // -------------------------------------------------------------------
+    // chat_history/{uid}/sessions/{sessionId}
+    // Historial de chat con el Tutor IA y de tareas escaneadas. Fases 2-3.
+    // Estrictamente privado: solo el dueño lee/escribe su propio historial.
+    // -------------------------------------------------------------------
+    match /chat_history/{uid} {
+      allow read, write: if isOwner(uid);
+
+      match /sessions/{sessionId} {
+        allow read, create, update: if isOwner(uid);
+        allow delete: if isOwner(uid);
+      }
+    }
+
+    // -------------------------------------------------------------------
+    // courses/{courseId}
+    // Módulo 2. El docente dueño crea/edita su curso; cualquier usuario
+    // autenticado puede leerlo (necesario para validar un código antes de
+    // unirse, y para que el estudiante vea el nombre del curso).
+    // -------------------------------------------------------------------
+    match /courses/{courseId} {
+      allow read: if isSignedIn();
+      allow create: if (isTeacher() && request.resource.data.teacherId == request.auth.uid)
+                    || isDireccion();
+      allow update, delete: if (isTeacher() && resource.data.teacherId == request.auth.uid)
+                             || isDireccion();
+    }
+
+    // Helper: ¿el usuario actual es el docente dueño de este curso, o dirección?
+    function ownsCourse(courseId) {
+      return isDireccion()
+             || (isTeacher()
+                 && get(/databases/$(database)/documents/courses/$(courseId)).data.teacherId == request.auth.uid);
+    }
+
+    // -------------------------------------------------------------------
+    // enrollments/{courseId_uid}
+    // Un documento por (curso, alumno). El ID se construye en el cliente
+    // como `${courseId}_${uid}` para que un alumno no pueda inscribirse dos
+    // veces (el segundo intento choca con "allow update: false").
+    // -------------------------------------------------------------------
+    match /enrollments/{enrollmentId} {
+      allow read: if isSignedIn()
+                  && (resource.data.uid == request.auth.uid || ownsCourse(resource.data.courseId));
+      allow create: if isStudent()
+                    && request.resource.data.uid == request.auth.uid
+                    && enrollmentId == request.resource.data.courseId + '_' + request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    // -------------------------------------------------------------------
+    // courseSubjects/{subjectId}
+    // Materias creadas DENTRO de un curso (ej. dentro de "3° A": Matemática,
+    // Historia). El docente dueño del curso (o dirección) crea/borra; su
+    // nombre no se edita, se borra y se vuelve a crear. Lectura abierta a
+    // cualquier usuario autenticado — Horarios y Notas la necesitan para
+    // ofrecerla como materia seleccionable (ver subjects.js).
+    // -------------------------------------------------------------------
+    match /courseSubjects/{subjectId} {
+      allow read: if isSignedIn();
+      allow create: if ownsCourse(request.resource.data.courseId);
+      allow update: if false;
+      allow delete: if ownsCourse(resource.data.courseId);
+    }
+
+    // -------------------------------------------------------------------
+    // attendance/{courseId_uid_YYYY-MM-DD}
+    // Módulo 7 — QR. El DOCENTE es quien escanea y crea el registro (el
+    // alumno solo genera su QR, no escribe attendance directamente). El ID
+    // determinístico por día hace que reescanear al mismo alumno el mismo
+    // día actualice el registro en vez de duplicarlo.
+    // -------------------------------------------------------------------
+    match /attendance/{recordId} {
+      // OJO: se lee por recordId (no por resource.data) a propósito. El
+      // alumno escucha en vivo attendance/{courseId}_{uid}_{fecha} ANTES de
+      // que exista (para mostrar "✓ registrado" apenas el docente lo
+      // escanea) — si el documento aún no existe, `resource` es null y
+      // `resource.data.uid` haría fallar la regla con "permission-denied"
+      // en vez de simplemente no encontrar nada. Parsear el propio recordId
+      // (que siempre existe, exista o no el documento) evita ese problema.
+      allow read: if isSignedIn()
+                  && (recordId.split('_')[1] == request.auth.uid || ownsCourse(recordId.split('_')[0]));
+      // El DOCENTE dueño del curso escribe el registro (el alumno solo
+      // genera su propio QR con {uid, courseId, exp}; es el docente quien lo
+      // escanea con la cámara y decide si marca presente). recordedBy debe
+      // ser el docente autenticado, y solo puede escribir en cursos que le
+      // pertenecen — así un docente no puede tomar asistencia en un curso
+      // ajeno aunque conozca el uid de un alumno.
+      allow create, update: if isTeacher()
+                    && request.resource.data.recordedBy == request.auth.uid
+                    && request.resource.data.timestamp is timestamp
+                    && ownsCourse(request.resource.data.courseId);
+      allow delete: if false;
+    }
+
+    // -------------------------------------------------------------------
+    // schedules/{scheduleId}
+    // Módulo 9 — Cronogramas de clase. Dirección crea/edita/borra; docentes
+    // y alumnos solo consultan (para ver sus horarios).
+    // -------------------------------------------------------------------
+    match /schedules/{scheduleId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isDireccion();
+    }
+
+    // -------------------------------------------------------------------
+    // evaluations/{evalId}
+    // Módulo 8 — Evaluaciones (Trabajo Práctico, Parcial, Laboratorio, etc.
+    // como MATERIA en el caso de "Laboratorio" — el tipo de evaluación es
+    // libre). El docente dueño del curso (o dirección) crea/edita/borra;
+    // cualquier usuario autenticado puede leer (el alumno necesita ver qué
+    // evaluación es cada nota; docentes/dirección para reportes).
+    // -------------------------------------------------------------------
+    match /evaluations/{evaluationId} {
+      allow read: if isSignedIn();
+      allow create, update: if ownsCourse(request.resource.data.courseId);
+      allow delete: if ownsCourse(resource.data.courseId);
+    }
+
+    // -------------------------------------------------------------------
+    // evaluationScores/{evaluationId_studentUid}
+    // Puntaje de un alumno en una evaluación puntual. El docente dueño del
+    // curso (o dirección) carga/edita/borra; el alumno solo lee las suyas.
+    // El ID determinístico `${evaluationId}_${uid}` hace que recargar el
+    // puntaje del mismo alumno en la misma evaluación actualice en vez de
+    // duplicar.
+    //
+    // No se re-verifica en la regla que `percentage`/`passed` sean el
+    // cálculo correcto (expresar esa aritmética en el lenguaje de rules es
+    // frágil ante redondeos) — grades.js SIEMPRE los recalcula en el
+    // cliente antes de escribir. La regla se limita a exigir el tipo
+    // correcto y que quien escribe tenga permiso sobre ese curso.
+    // -------------------------------------------------------------------
+    match /evaluationScores/{scoreId} {
+      allow read: if isSignedIn()
+                  && (resource.data.studentUid == request.auth.uid
+                      || ownsCourse(resource.data.courseId));
+      allow create, update: if ownsCourse(request.resource.data.courseId)
+                    && scoreId == request.resource.data.evaluationId + '_' + request.resource.data.studentUid
+                    && request.resource.data.score is number
+                    && (request.resource.data.percentage == null || request.resource.data.percentage is number)
+                    && (request.resource.data.passed == null || request.resource.data.passed is bool);
+      allow delete: if ownsCourse(resource.data.courseId);
+    }
+
+    // Módulo 6 — Recordatorios de tareas/exámenes.
+    // -------------------------------------------------------------------
+    match /agenda/{uid} {
+      allow read, write: if isOwner(uid);
+
+      match /items/{itemId} {
+        allow read, create, update, delete: if isOwner(uid);
+      }
+    }
+
+    // -------------------------------------------------------------------
+    // push_subscriptions/{uid}
+    // Módulo 6 — Web Push. Guarda el endpoint/keys de suscripción push del
+    // navegador del usuario. El envío real lo hace un Netlify Scheduled
+    // Function con Firebase Admin (bypassa estas reglas por diseño).
+    // -------------------------------------------------------------------
+    match /push_subscriptions/{uid} {
+      allow read, write: if isOwner(uid);
+    }
+
+    // -------------------------------------------------------------------
+    // Cualquier otra colección no listada explícitamente queda cerrada.
+    // -------------------------------------------------------------------
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

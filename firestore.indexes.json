@@ -1,0 +1,57 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "schedules",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "period", "order": "ASCENDING" },
+        { "fieldPath": "active", "order": "ASCENDING" },
+        { "fieldPath": "day", "order": "ASCENDING" },
+        { "fieldPath": "startTime", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "schedules",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "teacherId", "order": "ASCENDING" },
+        { "fieldPath": "period", "order": "ASCENDING" },
+        { "fieldPath": "active", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "schedules",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "courseId", "order": "ASCENDING" },
+        { "fieldPath": "period", "order": "ASCENDING" },
+        { "fieldPath": "active", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "evaluations",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "courseId", "order": "ASCENDING" },
+        { "fieldPath": "period", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "evaluationScores",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "courseId", "order": "ASCENDING" },
+        { "fieldPath": "evaluationId", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "evaluationScores",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "studentUid", "order": "ASCENDING" },
+        { "fieldPath": "period", "order": "ASCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

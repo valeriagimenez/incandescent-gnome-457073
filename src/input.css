@@ -1,0 +1,224 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ---------------------------------------------------------------------------
+   Brote — identidad oscura/natural. Fondo fotográfico fijo con velo verde,
+   igual en todas las pantallas (login y app), en vez de la grilla de puntos.
+--------------------------------------------------------------------------- */
+
+.dot-grid {
+  background-image:
+    linear-gradient(rgb(7 12 9 / 0.92), rgb(7 12 9 / 0.94)),
+    url("/assets/bg.jpg");
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+}
+
+/* Blob de gradiente detrás del logo/branding — el elemento de marca nuevo,
+   reemplaza el "cuaderno con espiral" de antes. */
+.glow-blob {
+  background: radial-gradient(
+    circle at 30% 30%,
+    rgb(196 181 253 / 0.55),
+    rgb(163 230 53 / 0.25) 45%,
+    transparent 70%
+  );
+  filter: blur(40px);
+}
+
+/* Superficies "glass": headers y navs flotantes translúcidos. */
+.glass {
+  background: rgb(19 21 30 / 0.72);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.field-focus:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgb(196 181 253 / 0.35);
+  border-color: rgb(196 181 253 / 0.8);
+}
+
+::selection {
+  background: rgb(163 230 53 / 0.35);
+  color: #ecf2ec;
+}
+
+/* Nav inferior móvil: se puede arrastrar/deslizar horizontalmente cuando no
+   caben todos los ítems, sin mostrar la barra de scroll. */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* ---------------------------------------------------------------------------
+   Toasts (alertas flotantes, ej. conflictos de horario)
+--------------------------------------------------------------------------- */
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(-8px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes toast-out {
+  from { opacity: 1; transform: translateY(0) scale(1); max-height: 200px; }
+  to   { opacity: 0; transform: translateY(-8px) scale(0.98); max-height: 0; margin: 0; padding-top: 0; padding-bottom: 0; }
+}
+.toast-enter { animation: toast-in 0.25s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.toast-exit { animation: toast-out 0.2s ease-in forwards; overflow: hidden; }
+
+/* Campo con error de validación (conflicto de horario/aula) */
+.field-error {
+  border-color: rgb(255 107 129 / 0.8) !important;
+  box-shadow: 0 0 0 3px rgb(255 107 129 / 0.18) !important;
+}
+
+/* ---------------------------------------------------------------------------
+   Login — fondo animado, glow y microinteracciones
+--------------------------------------------------------------------------- */
+@keyframes gradient-drift {
+  0%   { transform: translate(0, 0) scale(1); }
+  50%  { transform: translate(3%, -4%) scale(1.08); }
+  100% { transform: translate(0, 0) scale(1); }
+}
+.glow-blob {
+  animation: gradient-drift 14s ease-in-out infinite;
+}
+.glow-blob.glow-blob-delay {
+  animation-duration: 18s;
+  animation-delay: -6s;
+}
+
+#auth-particles {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  opacity: 0.5;
+}
+
+@keyframes btn-pulse {
+  0%, 100% { box-shadow: 0 0 0 1px rgb(196 181 253 / 0.4), 0 0 18px 0 rgb(196 181 253 / 0.3); }
+  50%      { box-shadow: 0 0 0 1px rgb(196 181 253 / 0.6), 0 0 32px 4px rgb(196 181 253 / 0.5); }
+}
+.btn-glow:hover:not(:disabled),
+.btn-glow:focus-visible:not(:disabled) {
+  animation: btn-pulse 1.6s ease-in-out infinite;
+}
+
+.field-focus {
+  transition: box-shadow 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+.field-focus:focus {
+  transform: translateY(-1px);
+}
+
+/* Transición entre pestañas Iniciar sesión / Crear cuenta */
+@keyframes form-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.auth-form-enter { animation: form-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+/* ---------------------------------------------------------------------------
+   Sidebar colapsable (desktop)
+--------------------------------------------------------------------------- */
+#app-sidebar {
+  transition: width 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+#app-sidebar.collapsed {
+  width: 4.25rem;
+}
+#app-sidebar .nav-label,
+#app-sidebar.collapsed .nav-label {
+  transition: opacity 0.15s ease, max-width 0.28s ease;
+  overflow: hidden;
+  white-space: nowrap;
+}
+#app-sidebar.collapsed .nav-label {
+  opacity: 0;
+  max-width: 0;
+}
+#app-sidebar.collapsed .nav-item {
+  justify-content: center;
+}
+
+/* Indicador activo: barra vertical verde encendida al lado del ítem */
+.nav-item {
+  position: relative;
+  transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+.nav-item .nav-indicator {
+  position: absolute;
+  left: -0.5rem;
+  top: 50%;
+  transform: translateY(-50%) scaleY(0);
+  width: 3px;
+  height: 60%;
+  border-radius: 999px;
+  background: rgb(196 181 253 / 1);
+  box-shadow: 0 0 10px 1px rgb(196 181 253 / 0.7);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transform-origin: center;
+}
+.nav-item.is-active .nav-indicator {
+  transform: translateY(-50%) scaleY(1);
+}
+
+#sidebar-toggle svg {
+  transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+#app-sidebar.collapsed #sidebar-toggle svg {
+  transform: rotate(180deg);
+}
+
+/* ---------------------------------------------------------------------------
+   Dock inferior (móvil) — estilo macOS: elevación en hover/tap
+--------------------------------------------------------------------------- */
+.dock-item {
+  transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.2s ease, box-shadow 0.2s ease;
+}
+.dock-item:hover,
+.dock-item:active {
+  transform: translateY(-3px) scale(1.08);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* Tooltip de la barra superior: muestra el nombre del módulo al pasar el cursor */
+.nav-tip {
+  position: relative;
+}
+.nav-tip::after {
+  content: attr(data-tip);
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translate(-50%, -4px);
+  padding: 4px 10px;
+  border-radius: 8px;
+  background: rgb(22 32 25);
+  border: 1px solid rgb(196 181 253 / 0.35);
+  color: rgb(236 242 236);
+  font-size: 12px;
+  font-family: Inter, sans-serif;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  z-index: 50;
+}
+.nav-tip:hover::after,
+.nav-tip:focus-visible::after {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
