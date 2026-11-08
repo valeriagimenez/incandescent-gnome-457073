@@ -98,7 +98,13 @@ exports.handler = async (event) => {
     if (!groqResponse.ok) {
       const errText = await groqResponse.text();
       console.error("Error de Groq API:", groqResponse.status, errText);
-      return respond(502, { error: "El tutor de IA no pudo responder en este momento." });
+      let message = "El tutor de IA no pudo responder en este momento.";
+      if (groqResponse.status === 401) {
+        message = "La clave de Groq (GROQ_API_KEY) es inválida o fue revocada.";
+      } else if (groqResponse.status === 429) {
+        message = "Se alcanzó el límite de uso de Groq. Intenta de nuevo en unos segundos.";
+      }
+      return respond(502, { error: message });
     }
 
     const data = await groqResponse.json();
