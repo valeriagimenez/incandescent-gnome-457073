@@ -21,6 +21,7 @@
 // ---------------------------------------------------------------------------
 
 import { auth, db } from "./firebase-config.js";
+import { openMaterials, closeMaterials } from "./materials.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
   collection,
@@ -120,6 +121,7 @@ function closeModalEl(modalEl) {
 }
 
 function closeDetailModal() {
+  closeMaterials();
   closeModalEl(detailModal);
   window.dispatchEvent(new CustomEvent("qr:stop"));
   unsubscribeRoster?.();
@@ -595,7 +597,10 @@ subjectForm?.addEventListener("submit", async (event) => {
   }
 });
 
-
+async function openDetail(course) {
+  closeMaterials();
+  unsubscribeRoster?.();
+  unsubscribeMyAttendance?.();
   activeCourse = course;
   const role = currentUserProfile?.role;
 
@@ -610,6 +615,7 @@ subjectForm?.addEventListener("submit", async (event) => {
   detailTeacherSection.classList.toggle("flex", isTeacher);
 
   openModalEl(detailModal);
+  openMaterials(course, currentUserProfile);
 
   if (isTeacher) {
     loadCourseStudents(course.id);
@@ -654,6 +660,8 @@ takeAttendanceBtn?.addEventListener("click", () => {
 // Inicialización ligada a la sesión de Firebase Auth
 // ---------------------------------------------------------------------------
 onAuthStateChanged(auth, async (user) => {
+  closeDetailModal();
+  activeCourse = null;
   currentUser = user;
   currentUserProfile = null;
   if (user) {

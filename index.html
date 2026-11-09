@@ -388,6 +388,28 @@
             </div>
             <div class="p-4 flex-1 overflow-y-auto">
 
+              <section id="course-materials" class="mb-4 border border-ink/10 rounded-xl p-4 bg-paper-200" aria-labelledby="materials-heading">
+                <div class="flex items-center justify-between gap-3 mb-2">
+                  <h4 id="materials-heading" class="font-display text-sm font-semibold text-ink">Materiales de estudio</h4>
+                  <span id="materials-count" class="text-xs font-mono text-ink/40"></span>
+                </div>
+                <p class="text-xs text-ink/50 mb-2">Apuntes y recursos compartidos por tu docente.</p>
+                <form id="materials-form" class="hidden space-y-3 mb-2">
+                  <div>
+                    <label for="material-title" class="block text-xs font-medium text-ink/60 mb-1.5">Título del material</label>
+                    <input id="material-title" name="title" type="text" required maxlength="120" placeholder="Ej. Guía de repaso · Unidad 1" class="field-focus w-full rounded-lg border border-ink/15 bg-paper-100 px-3 py-2 text-sm" />
+                  </div>
+                  <div>
+                    <label for="material-file" class="block text-xs font-medium text-ink/60 mb-1.5">Archivo · PDF, JPG, PNG o WebP · hasta 4 MB</label>
+                    <input id="material-file" name="file" type="file" required accept="application/pdf,image/jpeg,image/png,image/webp" class="w-full text-xs text-ink/60" />
+                  </div>
+                  <button type="submit" class="w-full rounded-lg bg-teal hover:bg-teal-600 text-void font-display font-semibold text-sm py-2.5 transition disabled:opacity-50">Publicar material</button>
+                </form>
+                <p id="materials-status" role="status" aria-live="polite" class="text-xs text-ink/50 py-2">Cargando materiales…</p>
+                <p id="materials-error" role="alert" class="hidden text-xs text-coral py-2"></p>
+                <ul id="materials-list" class="space-y-3" aria-label="Materiales publicados"></ul>
+              </section>
+
               <!-- Contenido para ESTUDIANTE: genera su propio QR -->
               <div id="course-detail-student" class="hidden flex-col items-center text-center gap-3">
                 <p class="text-xs text-ink/50">Muéstrale este código a tu docente para registrar tu asistencia.</p>
