@@ -128,6 +128,35 @@ service cloud.firestore {
     // cualquier usuario autenticado — Horarios y Notas la necesitan para
     // ofrecerla como materia seleccionable (ver subjects.js).
     // -------------------------------------------------------------------
+    // La implementación actual guarda materiales en Netlify. Esta regla
+    // protege también courseMaterials si existieran documentos en Firestore.
+    match /courseMaterials/{materialId} {
+      function materialOwner(courseId) {
+        return isTeacher()
+          && get(/databases/$(database)/documents/courses/$(courseId)).data.teacherId == request.auth.uid;
+      }
+      function validMaterial() {
+        return request.resource.data.keys().hasAll(['courseId', 'teacherId', 'title', 'fileUrl', 'createdAt'])
+          && request.resource.data.courseId is string
+          && request.resource.data.teacherId == request.auth.uid
+          && request.resource.data.title is string
+          && request.resource.data.title.size() > 0
+          && request.resource.data.title.size() <= 120
+          && request.resource.data.fileUrl is string
+          && request.resource.data.createdAt is timestamp;
+      }
+      allow read: if isSignedIn();
+      allow create: if validMaterial()
+                    && request.resource.data.createdAt == request.time
+                    && materialOwner(request.resource.data.courseId);
+      allow update: if validMaterial()
+                    && request.resource.data.courseId == resource.data.courseId
+                    && request.resource.data.teacherId == resource.data.teacherId
+                    && request.resource.data.createdAt == resource.data.createdAt
+                    && materialOwner(resource.data.courseId);
+      allow delete: if materialOwner(resource.data.courseId);
+    }
+
     match /courseSubjects/{subjectId} {
       allow read: if isSignedIn();
       allow create: if ownsCourse(request.resource.data.courseId);

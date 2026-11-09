@@ -10,7 +10,7 @@
 // Módulo 6 (Recordatorios / Web Push Notifications).
 // ---------------------------------------------------------------------------
 
-const CACHE_NAME = "brote-shell-v3";
+const CACHE_NAME = "brote-shell-v4";
 
 const APP_SHELL = [
   "/",
