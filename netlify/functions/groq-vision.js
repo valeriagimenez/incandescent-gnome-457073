@@ -4,7 +4,7 @@
 //
 // El frontend captura una foto con getUserMedia(), la convierte a Base64
 // (data URL) y la envía aquí. Esta función reenvía la imagen al modelo
-// llama-3.2-11b-vision-preview de Groq junto con el prompt de análisis y
+// de visión de Groq (ver ../lib/groq-vision.js) junto con el prompt de análisis y
 // devuelve el texto resultante.
 //
 // Contrato:
@@ -14,13 +14,9 @@
 //   -> 4xx/5xx { error: string }
 // ---------------------------------------------------------------------------
 
-const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
-// NOTA: llama-3.2-11b-vision-preview fue descontinuado por Groq en abril de
-// 2025 (ver https://console.groq.com/docs/deprecations). El modelo de
-// visión vigente al momento de escribir esto es qwen/qwen3.6-27b.
-// Si Groq vuelve a migrar su línea de modelos multimodales, revisa esa
-// página antes de cambiar este valor.
-const MODEL = "qwen/qwen3.6-27b";
+const { callGroqVision, groqErrorMessage } = require("../lib/groq-vision");
+// El modelo de visión se resuelve en ../lib/groq-vision.js (con respaldo
+// automático si Groq lo renombra o lo retira).
 
 const VISION_PROMPT =
   "¿Qué ves en esta imagen? Descríbelo de forma clara, directa y ordenada " +
@@ -64,32 +60,17 @@ exports.handler = async (event) => {
   }
 
   try {
-    const groqResponse = await fetch(GROQ_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        messages: [
-          {
-            role: "user",
-            content: [
-              { type: "text", text: VISION_PROMPT },
-              { type: "image_url", image_url: { url: imageBase64 } },
-            ],
-          },
-        ],
-        temperature: 0.4,
-        max_tokens: 1024,
-      }),
+    const groqResponse = await callGroqVision(apiKey, {
+      prompt: VISION_PROMPT,
+      imageBase64,
+      temperature: 0.4,
+      maxTokens: 1024,
     });
 
     if (!groqResponse.ok) {
       const errText = await groqResponse.text();
       console.error("Error de Groq Vision API:", groqResponse.status, errText);
-      return respond(502, { error: "No se pudo analizar la imagen en este momento." });
+      return respond(502, { error: groqErrorMessage(groqResponse.status, "No se pudo analizar la imagen en este momento.") });
     }
 
     const data = await groqResponse.json();

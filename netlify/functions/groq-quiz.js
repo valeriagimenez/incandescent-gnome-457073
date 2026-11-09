@@ -13,10 +13,9 @@
 //   -> 4xx/5xx { error: string }
 // ---------------------------------------------------------------------------
 
-const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
-// Mismo modelo de visión que groq-vision.js (ver la nota allí sobre
-// deprecaciones de modelos de Groq).
-const MODEL = "qwen/qwen3.6-27b";
+const { callGroqVision, groqErrorMessage } = require("../lib/groq-vision");
+// El modelo de visión se resuelve en ../lib/groq-vision.js (con respaldo
+// automático si Groq lo renombra o lo retira).
 
 const QUESTION_COUNT = 5;
 const OPTION_COUNT = 4;
@@ -81,32 +80,17 @@ exports.handler = async (event) => {
   }
 
   try {
-    const groqResponse = await fetch(GROQ_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        messages: [
-          {
-            role: "user",
-            content: [
-              { type: "text", text: QUIZ_PROMPT },
-              { type: "image_url", image_url: { url: imageBase64 } },
-            ],
-          },
-        ],
-        temperature: 0.4,
-        max_tokens: 2000,
-      }),
+    const groqResponse = await callGroqVision(apiKey, {
+      prompt: QUIZ_PROMPT,
+      imageBase64,
+      temperature: 0.4,
+      maxTokens: 2000,
     });
 
     if (!groqResponse.ok) {
       const errText = await groqResponse.text();
       console.error("Error de Groq (quiz):", groqResponse.status, errText);
-      return respond(502, { error: "No se pudo generar el cuestionario en este momento." });
+      return respond(502, { error: groqErrorMessage(groqResponse.status, "No se pudo generar el cuestionario en este momento.") });
     }
 
     const data = await groqResponse.json();
